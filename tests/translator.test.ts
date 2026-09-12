@@ -1,4 +1,8 @@
-import { Comparison, Operation, StructuredQuery } from "@langchain/core/structured_query";
+import {
+  Comparison,
+  Operation,
+  StructuredQuery,
+} from "@langchain/core/structured_query";
 import { describe, expect, it } from "vitest";
 import { PGVectorTranslator } from "../src/translator.js";
 
@@ -39,7 +43,9 @@ describe("PGVectorTranslator", () => {
   it("rejects the NOT operator (not in the allowed operator list)", () => {
     const translator = new PGVectorTranslator();
     expect(() =>
-      translator.visitOperation(new Operation("not", [new Comparison("eq", "category", "docs")])),
+      translator.visitOperation(
+        new Operation("not", [new Comparison("eq", "category", "docs")]),
+      ),
     ).toThrow(/disallowed function/);
   });
 });

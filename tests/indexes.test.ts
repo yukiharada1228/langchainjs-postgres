@@ -15,7 +15,9 @@ describe("indexes", () => {
     expect(index.m).toBe(16);
     expect(index.efConstruction).toBe(64);
     expect(index.indexOptions()).toBe("(m = 16, ef_construction = 64)");
-    expect(index.getIndexFunction()).toBe(DistanceStrategy.COSINE_DISTANCE.indexFunction);
+    expect(index.getIndexFunction()).toBe(
+      DistanceStrategy.COSINE_DISTANCE.indexFunction,
+    );
   });
 
   it("HNSWQueryOptions produces a SET LOCAL parameter", () => {
@@ -40,7 +42,9 @@ describe("indexes", () => {
   });
 
   it("uses the distance strategy's operator class for the index function", () => {
-    const index = new HNSWIndex({ distanceStrategy: DistanceStrategy.EUCLIDEAN });
+    const index = new HNSWIndex({
+      distanceStrategy: DistanceStrategy.EUCLIDEAN,
+    });
     expect(index.getIndexFunction()).toBe("vector_l2_ops");
   });
 
@@ -49,7 +53,9 @@ describe("indexes", () => {
   });
 
   it("validateIdentifier rejects unsafe identifiers", () => {
-    expect(() => validateIdentifier("bad; drop table")).toThrow(/Invalid identifier/);
+    expect(() => validateIdentifier("bad; drop table")).toThrow(
+      /Invalid identifier/,
+    );
     expect(() => validateIdentifier("1leading")).toThrow(/Invalid identifier/);
   });
 });

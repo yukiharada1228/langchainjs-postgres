@@ -3,7 +3,10 @@ export interface RecordedQuery {
   values?: unknown[];
 }
 
-export type QueryHandler = (text: string, values?: unknown[]) => { rows: any[] };
+export type QueryHandler = (
+  text: string,
+  values?: unknown[],
+) => { rows: any[] };
 
 /** A handler that only cares about some queries, falling through for the rest. */
 export type PartialQueryHandler = (

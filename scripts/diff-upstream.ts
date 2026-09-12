@@ -47,7 +47,10 @@ function main(): void {
 
   const current = git("rev-parse HEAD");
   git("fetch origin --quiet");
-  const defaultBranch = git("rev-parse --abbrev-ref origin/HEAD").replace("origin/", "");
+  const defaultBranch = git("rev-parse --abbrev-ref origin/HEAD").replace(
+    "origin/",
+    "",
+  );
   const latest = git(`rev-parse origin/${defaultBranch}`);
 
   console.log("Upstream update check: langchain-ai/langchain-postgres\n");
@@ -66,7 +69,9 @@ function main(): void {
   const changedAll = git(`diff --name-only ${current} ${latest}`)
     .split("\n")
     .filter(Boolean);
-  const changed = changedAll.filter((f) => WATCHED_PATHS.some((p) => f.startsWith(p)));
+  const changed = changedAll.filter((f) =>
+    WATCHED_PATHS.some((p) => f.startsWith(p)),
+  );
 
   if (changed.length === 0) {
     console.log(
@@ -83,14 +88,24 @@ function main(): void {
   for (const f of changed) console.log(`- ${f}`);
 
   console.log("\nUpstream commits touching those paths:");
-  const log = git(`log --oneline ${current}..${latest} -- ${WATCHED_PATHS.join(" ")}`);
-  console.log(log || "(no direct commits; changes may have arrived via a merge)");
+  const log = git(
+    `log --oneline ${current}..${latest} -- ${WATCHED_PATHS.join(" ")}`,
+  );
+  console.log(
+    log || "(no direct commits; changes may have arrived via a merge)",
+  );
 
   console.log("\nSuggested next steps:");
-  console.log("- Diff the changed upstream files against the corresponding module in src/.");
-  console.log("- Port the new/changed behavior into TypeScript, keeping API names analogous.");
+  console.log(
+    "- Diff the changed upstream files against the corresponding module in src/.",
+  );
+  console.log(
+    "- Port the new/changed behavior into TypeScript, keeping API names analogous.",
+  );
   console.log("- Add/update tests under tests/ to cover the change.");
-  console.log(`- Bump the submodule: cd upstream/langchain-postgres && git checkout ${latest}`);
+  console.log(
+    `- Bump the submodule: cd upstream/langchain-postgres && git checkout ${latest}`,
+  );
 }
 
 main();

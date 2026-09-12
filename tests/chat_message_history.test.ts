@@ -9,7 +9,12 @@ describe("PostgresChatMessageHistory", () => {
   it("rejects a non-UUID session id", () => {
     const pool = new FakePool();
     expect(
-      () => new PostgresChatMessageHistory({ tableName: "chat", sessionId: "not-a-uuid", pool }),
+      () =>
+        new PostgresChatMessageHistory({
+          tableName: "chat",
+          sessionId: "not-a-uuid",
+          pool,
+        }),
     ).toThrow(/must be a valid UUID/);
   });
 
@@ -43,12 +48,18 @@ describe("PostgresChatMessageHistory", () => {
 
     await history.addMessages([new HumanMessage("hi"), new AIMessage("hello")]);
 
-    const insertCall = pool.calls.find((c) => c.text.startsWith("INSERT INTO"))!;
+    const insertCall = pool.calls.find((c) =>
+      c.text.startsWith("INSERT INTO"),
+    )!;
     expect(insertCall.text).toContain("VALUES ($1, $2), ($3, $4)");
     expect(insertCall.values?.[0]).toBe(SESSION_ID);
-    expect(JSON.parse(insertCall.values?.[1] as string).data.content).toBe("hi");
+    expect(JSON.parse(insertCall.values?.[1] as string).data.content).toBe(
+      "hi",
+    );
     expect(insertCall.values?.[2]).toBe(SESSION_ID);
-    expect(JSON.parse(insertCall.values?.[3] as string).data.content).toBe("hello");
+    expect(JSON.parse(insertCall.values?.[3] as string).data.content).toBe(
+      "hello",
+    );
   });
 
   it("getMessages deserializes stored rows back into BaseMessage instances", async () => {
@@ -56,8 +67,18 @@ describe("PostgresChatMessageHistory", () => {
       if (text.startsWith("SELECT")) {
         return {
           rows: [
-            { message: { type: "human", data: { content: "hi", additional_kwargs: {} } } },
-            { message: { type: "ai", data: { content: "hello", additional_kwargs: {} } } },
+            {
+              message: {
+                type: "human",
+                data: { content: "hi", additional_kwargs: {} },
+              },
+            },
+            {
+              message: {
+                type: "ai",
+                data: { content: "hello", additional_kwargs: {} },
+              },
+            },
           ],
         };
       }

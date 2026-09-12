@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createFilterClause, ParamBuilder, type FilterContext } from "../src/filter.js";
+import {
+  createFilterClause,
+  ParamBuilder,
+  type FilterContext,
+} from "../src/filter.js";
 
 function context(overrides: Partial<FilterContext> = {}): FilterContext {
   return {
@@ -16,7 +20,10 @@ function context(overrides: Partial<FilterContext> = {}): FilterContext {
 describe("createFilterClause", () => {
   it("compiles a simple equality filter on a typed metadata column", () => {
     const params = new ParamBuilder();
-    const clause = createFilterClause({ category: "docs" }, context({ params }));
+    const clause = createFilterClause(
+      { category: "docs" },
+      context({ params }),
+    );
     expect(clause).toBe("category = $1");
     expect(params.values).toEqual(["docs"]);
   });
@@ -30,7 +37,10 @@ describe("createFilterClause", () => {
 
   it("builds a nested JSON path with a numeric cast for the last segment", () => {
     const params = new ParamBuilder();
-    const clause = createFilterClause({ "author.age": { $gt: 30 } }, context({ params }));
+    const clause = createFilterClause(
+      { "author.age": { $gt: 30 } },
+      context({ params }),
+    );
     expect(clause).toBe("(langchain_metadata->'author'->>'age')::INTEGER > $1");
     expect(params.values).toEqual([30]);
   });
@@ -41,7 +51,9 @@ describe("createFilterClause", () => {
       { category: "docs", author: "ada" },
       context({ params }),
     );
-    expect(clause).toBe("(category = $1 AND langchain_metadata->>'author' = $2)");
+    expect(clause).toBe(
+      "(category = $1 AND langchain_metadata->>'author' = $2)",
+    );
     expect(params.values).toEqual(["docs", "ada"]);
   });
 
@@ -49,7 +61,10 @@ describe("createFilterClause", () => {
     const params = new ParamBuilder();
     const clause = createFilterClause(
       {
-        $and: [{ category: "docs" }, { $or: [{ author: "ada" }, { author: "grace" }] }],
+        $and: [
+          { category: "docs" },
+          { $or: [{ author: "ada" }, { author: "grace" }] },
+        ],
       },
       context({ params }),
     );
@@ -61,7 +76,10 @@ describe("createFilterClause", () => {
 
   it("supports $not with a single condition", () => {
     const params = new ParamBuilder();
-    const clause = createFilterClause({ $not: { category: "docs" } }, context({ params }));
+    const clause = createFilterClause(
+      { $not: { category: "docs" } },
+      context({ params }),
+    );
     expect(clause).toBe("(NOT category = $1)");
     expect(params.values).toEqual(["docs"]);
   });
@@ -90,14 +108,20 @@ describe("createFilterClause", () => {
 
   it("supports $exists", () => {
     const params = new ParamBuilder();
-    const clause = createFilterClause({ author: { $exists: false } }, context({ params }));
+    const clause = createFilterClause(
+      { author: { $exists: false } },
+      context({ params }),
+    );
     expect(clause).toBe("(langchain_metadata->>'author' IS NULL)");
     expect(params.values).toEqual([]);
   });
 
   it("supports $like / $ilike", () => {
     const params = new ParamBuilder();
-    const clause = createFilterClause({ author: { $ilike: "%ada%" } }, context({ params }));
+    const clause = createFilterClause(
+      { author: { $ilike: "%ada%" } },
+      context({ params }),
+    );
     expect(clause).toBe("(langchain_metadata->>'author' ILIKE $1)");
     expect(params.values).toEqual(["%ada%"]);
   });
@@ -109,9 +133,9 @@ describe("createFilterClause", () => {
   });
 
   it("rejects an unsupported operator", () => {
-    expect(() => createFilterClause({ category: { $regex: "x" } }, context())).toThrow(
-      /Invalid operator/,
-    );
+    expect(() =>
+      createFilterClause({ category: { $regex: "x" } }, context()),
+    ).toThrow(/Invalid operator/);
   });
 
   it("rejects an unknown top-level $ operator", () => {
@@ -122,7 +146,10 @@ describe("createFilterClause", () => {
 
   it("does not route id/content/embedding columns through the JSON column", () => {
     const params = new ParamBuilder();
-    const clause = createFilterClause({ langchain_id: "abc" }, context({ params }));
+    const clause = createFilterClause(
+      { langchain_id: "abc" },
+      context({ params }),
+    );
     expect(clause).toBe("langchain_id = $1");
   });
 });

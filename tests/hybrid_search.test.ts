@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { reciprocalRankFusion, weightedSumRanking } from "../src/hybrid_search.js";
+import {
+  reciprocalRankFusion,
+  weightedSumRanking,
+} from "../src/hybrid_search.js";
 
 describe("weightedSumRanking", () => {
   it("normalizes and combines dense + sparse scores", () => {

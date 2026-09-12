@@ -4,7 +4,11 @@ import { describe, expect, it } from "vitest";
 import { PGEngine } from "../src/engine.js";
 import { PGVectorStore } from "../src/vectorstore.js";
 import { FakeEmbeddings } from "./helpers/fake-embeddings.js";
-import { FakePool, type PartialQueryHandler, type QueryHandler } from "./helpers/fake-pool.js";
+import {
+  FakePool,
+  type PartialQueryHandler,
+  type QueryHandler,
+} from "./helpers/fake-pool.js";
 
 const baseColumns = [
   { column_name: "langchain_id", data_type: "uuid" },
@@ -34,7 +38,9 @@ async function makeStore(
   metadataColumns: string[] = ["category"],
 ): Promise<PGVectorStore> {
   const engine = PGEngine.fromPool(pool as unknown as Pool);
-  return PGVectorStore.initialize(engine, new FakeEmbeddings(2), "docs", { metadataColumns });
+  return PGVectorStore.initialize(engine, new FakeEmbeddings(2), "docs", {
+    metadataColumns,
+  });
 }
 
 describe("PGVectorStore.initialize", () => {
@@ -53,14 +59,21 @@ describe("PGVectorStore.initialize", () => {
     const columns = baseColumns.map((c) =>
       c.column_name === "embedding" ? { ...c, data_type: "text" } : c,
     );
-    await expect(makeStore(makePool(columns))).rejects.toThrow(/is not type Vector/);
+    await expect(makeStore(makePool(columns))).rejects.toThrow(
+      /is not type Vector/,
+    );
   });
 
   it("drops the metadata JSON column when metadataJsonColumn is null", async () => {
     const engine = PGEngine.fromPool(makePool() as unknown as Pool);
-    const store = await PGVectorStore.initialize(engine, new FakeEmbeddings(2), "docs", {
-      metadataJsonColumn: null,
-    });
+    const store = await PGVectorStore.initialize(
+      engine,
+      new FakeEmbeddings(2),
+      "docs",
+      {
+        metadataJsonColumn: null,
+      },
+    );
     expect(store.metadataJsonColumn).toBeUndefined();
   });
 });
@@ -71,20 +84,27 @@ describe("PGVectorStore.addDocuments", () => {
     const store = await makeStore(pool);
 
     const ids = await store.addDocuments([
-      new Document({ pageContent: "hello", metadata: { category: "greeting", extra: "x" } }),
+      new Document({
+        pageContent: "hello",
+        metadata: { category: "greeting", extra: "x" },
+      }),
     ]);
 
     expect(ids).toHaveLength(1);
     expect(ids[0]).toMatch(/^[0-9a-f-]{36}$/i);
 
-    const insertCall = pool.calls.find((c) => c.text.startsWith("INSERT INTO"))!;
+    const insertCall = pool.calls.find((c) =>
+      c.text.startsWith("INSERT INTO"),
+    )!;
     expect(insertCall.text).toContain(
       '"langchain_id", "content", "embedding", "category", "langchain_metadata"',
     );
     expect(insertCall.text).toContain("ON CONFLICT");
     expect(insertCall.values?.[1]).toBe("hello");
     expect(insertCall.values?.[3]).toBe("greeting");
-    expect(JSON.parse(insertCall.values?.[4] as string)).toEqual({ extra: "x" });
+    expect(JSON.parse(insertCall.values?.[4] as string)).toEqual({
+      extra: "x",
+    });
   });
 
   it("uses the document id when provided instead of generating one", async () => {
@@ -138,7 +158,9 @@ describe("PGVectorStore.delete", () => {
 
     await store.delete({ ids: ["a", "b"], filter: { category: "greeting" } });
 
-    const deleteCall = pool.calls.find((c) => c.text.startsWith("DELETE FROM"))!;
+    const deleteCall = pool.calls.find((c) =>
+      c.text.startsWith("DELETE FROM"),
+    )!;
     expect(deleteCall.text).toContain('"langchain_id" IN ($1, $2)');
     expect(deleteCall.text).toContain("category = $3");
     expect(deleteCall.values).toEqual(["a", "b", "greeting"]);
@@ -150,7 +172,9 @@ describe("PGVectorStore.delete", () => {
 
     await store.delete();
 
-    expect(pool.calls.some((c) => c.text.startsWith("DELETE FROM"))).toBe(false);
+    expect(pool.calls.some((c) => c.text.startsWith("DELETE FROM"))).toBe(
+      false,
+    );
   });
 });
 
