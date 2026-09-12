@@ -179,6 +179,18 @@ npm run typecheck
 npm run lint
 ```
 
+### Integration tests
+
+`tests/integration/` runs the same code paths against a real Postgres + pgvector instance
+(no mocking). It requires `DATABASE_URL` and is not part of `npm test`:
+
+```bash
+docker run --rm -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres pgvector/pgvector:pg17
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres npm run test:integration
+```
+
+CI runs this automatically against a `pgvector/pgvector:pg17` service container.
+
 ## Staying in sync with upstream
 
 This package tracks [`langchain-ai/langchain-postgres`](https://github.com/langchain-ai/langchain-postgres)

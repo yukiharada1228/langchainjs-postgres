@@ -46,6 +46,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "check:upstream": "tsx scripts/check-upstream.ts",
     "diff:upstream": "tsx scripts/diff-upstream.ts",
     "prepublishOnly": "npm run build"
