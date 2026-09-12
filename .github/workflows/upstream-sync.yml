@@ -1,0 +1,107 @@
+name: Upstream Sync
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-upstream:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Diff against upstream langchain-postgres
+        id: diff
+        run: npm run diff:upstream | tee upstream-report.txt
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: upstream-report
+          path: upstream-report.txt
+
+      - name: Ensure upstream label
+        if: steps.diff.outputs.outdated == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create upstream \
+            --description "langchain-ai/langchain-postgres sync needed" \
+            --color "0E8A16" \
+            --force
+
+      - name: Create or update sync issue
+        if: steps.diff.outputs.outdated == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURRENT: ${{ steps.diff.outputs.current }}
+          LATEST: ${{ steps.diff.outputs.latest }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          SHORT_CURRENT="${CURRENT:0:7}"
+          SHORT_LATEST="${LATEST:0:7}"
+          TITLE="Upstream sync: langchain-ai/langchain-postgres (${SHORT_CURRENT} → ${SHORT_LATEST})"
+
+          BODY_FILE=$(mktemp)
+          {
+            echo "## Upstream update detected"
+            echo
+            echo "The pinned \`upstream/langchain-postgres\` submodule commit is behind"
+            echo "the latest commit on langchain-ai/langchain-postgres's default branch."
+            echo
+            echo "| | SHA |"
+            echo "|---|---|"
+            echo "| Current (pinned) | \`${CURRENT}\` |"
+            echo "| Latest | [\`${LATEST}\`](https://github.com/langchain-ai/langchain-postgres/commit/${LATEST}) |"
+            echo
+            echo "Workflow run: ${RUN_URL}"
+            echo
+            echo "## Diff report"
+            echo
+            echo '```'
+            cat upstream-report.txt
+            echo '```'
+            echo
+            echo "## Next steps"
+            echo
+            echo "- [ ] Review the changed upstream files and diff their content against \`src/\`"
+            echo "- [ ] Port any new/changed behavior into the corresponding TypeScript module"
+            echo "- [ ] Add/update tests under \`tests/\`"
+            echo "- [ ] Bump the \`upstream/langchain-postgres\` submodule to \`${LATEST}\`"
+            echo "- [ ] Open a PR and close this issue"
+          } > "$BODY_FILE"
+
+          EXISTING=$(
+            gh issue list \
+              --label upstream \
+              --state open \
+              --json number,title \
+              --jq '.[] | select(.title | startswith("Upstream sync: langchain-ai/langchain-postgres")) | .number' \
+            | head -n 1
+          )
+
+          if [ -n "$EXISTING" ]; then
+            gh issue edit "$EXISTING" --title "$TITLE" --body-file "$BODY_FILE"
+            gh issue comment "$EXISTING" --body "Upstream sync check re-ran and refreshed this issue. Run: ${RUN_URL}"
+            echo "Updated issue #${EXISTING}"
+          else
+            URL=$(gh issue create --title "$TITLE" --label upstream --body-file "$BODY_FILE")
+            echo "Created issue: ${URL}"
+          fi

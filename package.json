@@ -1,0 +1,76 @@
+{
+  "name": "@yukiharada1228/langchain-postgres",
+  "version": "0.1.0",
+  "description": "Unofficial LangChain.js port of langchain-postgres (Postgres/pgvector integrations for LangChain).",
+  "keywords": [
+    "langchain",
+    "langchainjs",
+    "postgres",
+    "postgresql",
+    "pgvector",
+    "vectorstore",
+    "embeddings"
+  ],
+  "homepage": "https://github.com/yukiharada1228/langchainjs-postgres",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yukiharada1228/langchainjs-postgres.git"
+  },
+  "license": "MIT",
+  "author": "yukiharada1228",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check:upstream": "tsx scripts/check-upstream.ts",
+    "diff:upstream": "tsx scripts/diff-upstream.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "pg": "^8.23.0",
+    "uuid": "^14.0.2"
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0 <2.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.38.0",
+    "@langchain/core": "^1.2.11",
+    "@types/node": "^22.20.2",
+    "@types/pg": "^8.23.1",
+    "@typescript-eslint/eslint-plugin": "^8.70.0",
+    "@typescript-eslint/parser": "^8.70.0",
+    "eslint": "^9.38.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.6",
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "packageManager": "npm@11.7.0"
+}
