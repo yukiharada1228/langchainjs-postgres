@@ -1,6 +1,6 @@
 {
   "name": "@yukiharada1228/langchain-postgres",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Unofficial LangChain.js port of langchain-postgres (Postgres/pgvector integrations for LangChain).",
   "keywords": [
     "langchain",
