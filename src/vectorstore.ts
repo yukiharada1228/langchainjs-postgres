@@ -367,6 +367,9 @@ export class PGVectorStore extends VectorStore {
           embedding.length === 0 &&
           typeof this.embeddings.embedQueryInlineTemplate === "function"
         ) {
+          // Fix the shared parameter's type before assigning it to a char or
+          // varchar column and passing it to a text embedding function.
+          valueExprs[1] = "$2::text";
           valueExprs.push(this.embeddings.embedQueryInlineTemplate("$2"));
         } else if (
           embedding.length === 0 &&
@@ -536,13 +539,13 @@ export class PGVectorStore extends VectorStore {
       if (clause) whereFilters = `WHERE ${clause}`;
     }
 
-    let embeddingExpression: string;
+    let inlineEmbeddingExpression: string | undefined;
     if (
       embedding.length === 0 &&
       options.query !== undefined &&
       typeof this.embeddings.embedQueryInlineTemplate === "function"
     ) {
-      embeddingExpression = this.embeddings.embedQueryInlineTemplate(
+      inlineEmbeddingExpression = this.embeddings.embedQueryInlineTemplate(
         params.add(options.query),
       );
     } else if (
@@ -550,13 +553,24 @@ export class PGVectorStore extends VectorStore {
       options.query !== undefined &&
       typeof this.embeddings.embedQueryInline === "function"
     ) {
-      embeddingExpression = this.embeddings.embedQueryInline(options.query);
-    } else {
-      embeddingExpression = params.add(vectorToSql(embedding));
+      inlineEmbeddingExpression = this.embeddings.embedQueryInline(
+        options.query,
+      );
     }
+    // Materialize database-side embeddings once, even for STABLE/VOLATILE
+    // functions. Scalar references let pgvector use the result as an index
+    // scan parameter without evaluating the embedding for each candidate row.
+    const embeddingCte =
+      inlineEmbeddingExpression !== undefined
+        ? `WITH __langchain_query_embedding AS MATERIALIZED (SELECT ${inlineEmbeddingExpression} AS embedding) `
+        : "";
+    const embeddingExpression =
+      inlineEmbeddingExpression !== undefined
+        ? "(SELECT embedding FROM __langchain_query_embedding)"
+        : params.add(vectorToSql(embedding));
     const denseLimitPlaceholder = params.add(denseLimit);
 
-    const denseQuery = `SELECT ${columnNames}, ${searchFunction}("${this.embeddingColumn}", ${embeddingExpression}) as distance
+    const denseQuery = `${embeddingCte}SELECT ${columnNames}, ${searchFunction}("${this.embeddingColumn}", ${embeddingExpression}) as distance
       FROM "${this.schemaName}"."${this.tableName}" ${whereFilters}
       ORDER BY "${this.embeddingColumn}" ${operator} ${embeddingExpression} LIMIT ${denseLimitPlaceholder};`;
 

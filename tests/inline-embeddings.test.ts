@@ -120,7 +120,7 @@ describe.each(["template", "legacy", "both"] as const)(
         ]);
         if (mode !== "legacy") {
           expect(insert.text).toContain(
-            "VALUES ($1, $2, embedding('model_id', $2)::vector, $3, $4)",
+            "VALUES ($1, $2::text, embedding('model_id', $2)::vector, $3, $4)",
           );
           expect(insert.text).not.toContain(texts[i]);
         } else {
@@ -166,13 +166,20 @@ describe.each(["template", "legacy", "both"] as const)(
           call.text.includes("as distance"),
         )!;
         expect(search.text).toContain("WHERE category = $1");
+        expect(search.text).toContain(
+          "WITH __langchain_query_embedding AS MATERIALIZED",
+        );
+        expect(search.text).toContain(
+          'cosine_distance("embedding", (SELECT embedding FROM __langchain_query_embedding))',
+        );
+        expect(search.text).toContain(
+          'ORDER BY "embedding" <=> (SELECT embedding FROM __langchain_query_embedding)',
+        );
         if (mode !== "legacy") {
           expect(search.text).toContain(
-            "cosine_distance(\"embedding\", embedding('model_id', $2)::vector)",
+            "SELECT embedding('model_id', $2)::vector AS embedding",
           );
-          expect(search.text).toContain(
-            "ORDER BY \"embedding\" <=> embedding('model_id', $2)::vector LIMIT $3",
-          );
+          expect(search.text).toContain("LIMIT $3");
           expect(search.text).not.toContain(text);
           expect(search.values).toEqual(["docs", text, 4]);
           expect(embeddings.embedQueryInlineTemplate).toHaveBeenCalledWith(
@@ -212,6 +219,7 @@ describe.each(["template", "legacy", "both"] as const)(
         call.text.includes("as distance"),
       )!;
       expect(search.values).toEqual(["[0.1,0.2]", 3]);
+      expect(search.text).not.toContain("WITH __langchain_query_embedding");
       if (embeddings.embedQueryInlineTemplate)
         expect(embeddings.embedQueryInlineTemplate).not.toHaveBeenCalled();
       if (embeddings.embedQueryInline)
@@ -221,7 +229,7 @@ describe.each(["template", "legacy", "both"] as const)(
 );
 
 describe("PGVectorStore template binding", () => {
-  it("binds empty query text and reuses its placeholder for both distance expressions", async () => {
+  it("binds empty query text once and reuses the computed embedding", async () => {
     const pool = makePool();
     const embeddings = makeEmbeddings("template");
     const store = await PGVectorStore.initialize(
@@ -235,6 +243,9 @@ describe("PGVectorStore template binding", () => {
     )!;
     expect(
       search.text.match(/embedding\('model_id', \$1\)::vector/g),
+    ).toHaveLength(1);
+    expect(
+      search.text.match(/SELECT embedding FROM __langchain_query_embedding/g),
     ).toHaveLength(2);
     expect(search.values).toEqual(["", 4]);
     expect(embeddings.embedQuery).not.toHaveBeenCalled();
@@ -335,7 +346,7 @@ describe("PGVectorStore template binding", () => {
       call.text.startsWith("INSERT INTO"),
     )!;
     expect(insert.text).toContain(
-      "VALUES ($1, $2, embedding('model_id', $2)::vector)",
+      "VALUES ($1, $2::text, embedding('model_id', $2)::vector)",
     );
     expect(insert.values).toEqual(["id-1", text]);
   });

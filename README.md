@@ -152,6 +152,8 @@ await vectorStore.applyVectorIndex(
 Embedding providers can implement `embedQueryInlineTemplate(placeholder)` to compute
 embeddings inside Postgres. It returns a trusted SQL expression using the supplied `$n`
 placeholder; document and query text are passed separately as native `pg` parameters.
+The query embedding expression is evaluated at most once per similarity search and reused
+for ranking and scoring.
 The SQL embedding function must already be available in your database. For example:
 
 ```typescript
