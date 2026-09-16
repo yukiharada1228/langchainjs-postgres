@@ -7,6 +7,7 @@ export {
 
 export {
   PGVectorStore,
+  type PGVectorStoreEmbeddings,
   type MMRByVectorOptions,
   type PGVectorStoreFromTextsOptions,
   type PGVectorStoreGetOptions,
