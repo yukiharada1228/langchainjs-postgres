@@ -38,6 +38,21 @@ function vectorToSql(embedding: number[]): string {
   return `[${embedding.join(",")}]`;
 }
 
+/** Embeddings with optional database-side SQL expression hooks. */
+export interface PGVectorStoreEmbeddings extends EmbeddingsInterface {
+  /**
+   * Return a trusted SQL expression using the supplied `$n` placeholder.
+   * The store binds the document or query text separately. Preferred over
+   * embedQueryInline when both hooks are available.
+   */
+  embedQueryInlineTemplate?(placeholder: string): string;
+  /**
+   * Legacy hook returning a complete SQL expression. The provider is
+   * responsible for escaping the text; prefer embedQueryInlineTemplate.
+   */
+  embedQueryInline?(text: string): string;
+}
+
 export interface PGVectorStoreInitializeOptions {
   schemaName?: string;
   contentColumn?: string;
@@ -104,6 +119,7 @@ export interface MMRByVectorOptions {
 /** Postgres vector store backed by the `pgvector` extension. */
 export class PGVectorStore extends VectorStore {
   declare FilterType: Record<string, any>;
+  declare embeddings: PGVectorStoreEmbeddings;
 
   engine: PGEngine;
   tableName: string;
@@ -121,7 +137,7 @@ export class PGVectorStore extends VectorStore {
   hybridSearchConfig?: HybridSearchConfig;
 
   private constructor(
-    embeddings: EmbeddingsInterface,
+    embeddings: PGVectorStoreEmbeddings,
     args: PGVectorStoreArgs,
   ) {
     super(embeddings, {});
@@ -151,7 +167,7 @@ export class PGVectorStore extends VectorStore {
    */
   static async initialize(
     engine: PGEngine,
-    embeddings: EmbeddingsInterface,
+    embeddings: PGVectorStoreEmbeddings,
     tableName: string,
     options: PGVectorStoreInitializeOptions = {},
   ): Promise<PGVectorStore> {
@@ -255,7 +271,7 @@ export class PGVectorStore extends VectorStore {
   static async fromTexts(
     texts: string[],
     metadatas: Record<string, any>[] | Record<string, any>,
-    embeddings: EmbeddingsInterface,
+    embeddings: PGVectorStoreEmbeddings,
     dbConfig: PGVectorStoreFromTextsOptions,
   ): Promise<PGVectorStore> {
     const { engine, tableName, ids, ...options } = dbConfig;
@@ -283,7 +299,7 @@ export class PGVectorStore extends VectorStore {
 
   static async fromDocuments(
     docs: DocumentInterface[],
-    embeddings: EmbeddingsInterface,
+    embeddings: PGVectorStoreEmbeddings,
     dbConfig: PGVectorStoreFromTextsOptions,
   ): Promise<PGVectorStore> {
     const { engine, tableName, ids, ...options } = dbConfig;
@@ -345,8 +361,25 @@ export class PGVectorStore extends VectorStore {
           this.contentColumn,
           this.embeddingColumn,
         ];
-        const values: unknown[] = [id, content, vectorToSql(embedding)];
-        const valueExprs: string[] = ["$1", "$2", "$3"];
+        const values: unknown[] = [id, content];
+        const valueExprs: string[] = ["$1", "$2"];
+        if (
+          embedding.length === 0 &&
+          typeof this.embeddings.embedQueryInlineTemplate === "function"
+        ) {
+          // Fix the shared parameter's type before assigning it to a char or
+          // varchar column and passing it to a text embedding function.
+          valueExprs[1] = "$2::text";
+          valueExprs.push(this.embeddings.embedQueryInlineTemplate("$2"));
+        } else if (
+          embedding.length === 0 &&
+          typeof this.embeddings.embedQueryInline === "function"
+        ) {
+          valueExprs.push(this.embeddings.embedQueryInline(content));
+        } else {
+          values.push(vectorToSql(embedding));
+          valueExprs.push("$3");
+        }
 
         if (this.hybridSearchConfig?.tsvColumn) {
           columns.push(this.hybridSearchConfig.tsvColumn);
@@ -420,7 +453,9 @@ export class PGVectorStore extends VectorStore {
     options?: Record<string, any>,
   ): Promise<string[]> {
     const texts = documents.map((d) => d.pageContent);
-    const embeddings = await this.embeddings.embedDocuments(texts);
+    const embeddings = this.hasInlineEmbeddings()
+      ? texts.map(() => [])
+      : await this.embeddings.embedDocuments(texts);
     return this.addVectors(embeddings, documents, options);
   }
 
@@ -430,8 +465,17 @@ export class PGVectorStore extends VectorStore {
     metadatas?: Record<string, any>[],
     ids?: Array<string | null | undefined>,
   ): Promise<string[]> {
-    const embeddings = await this.embeddings.embedDocuments(texts);
+    const embeddings = this.hasInlineEmbeddings()
+      ? texts.map(() => [])
+      : await this.embeddings.embedDocuments(texts);
     return this.addEmbeddings(texts, embeddings, metadatas, ids);
+  }
+
+  private hasInlineEmbeddings(): boolean {
+    return (
+      typeof this.embeddings.embedQueryInlineTemplate === "function" ||
+      typeof this.embeddings.embedQueryInline === "function"
+    );
   }
 
   async delete(
@@ -462,6 +506,7 @@ export class PGVectorStore extends VectorStore {
     options: {
       k?: number;
       filter?: Record<string, any>;
+      query?: string;
       ftsQuery?: string;
       hybridSearchConfig?: HybridSearchConfig;
     } = {},
@@ -494,12 +539,40 @@ export class PGVectorStore extends VectorStore {
       if (clause) whereFilters = `WHERE ${clause}`;
     }
 
-    const embeddingPlaceholder = params.add(vectorToSql(embedding));
+    let inlineEmbeddingExpression: string | undefined;
+    if (
+      embedding.length === 0 &&
+      options.query !== undefined &&
+      typeof this.embeddings.embedQueryInlineTemplate === "function"
+    ) {
+      inlineEmbeddingExpression = this.embeddings.embedQueryInlineTemplate(
+        params.add(options.query),
+      );
+    } else if (
+      embedding.length === 0 &&
+      options.query !== undefined &&
+      typeof this.embeddings.embedQueryInline === "function"
+    ) {
+      inlineEmbeddingExpression = this.embeddings.embedQueryInline(
+        options.query,
+      );
+    }
+    // Materialize database-side embeddings once, even for STABLE/VOLATILE
+    // functions. Scalar references let pgvector use the result as an index
+    // scan parameter without evaluating the embedding for each candidate row.
+    const embeddingCte =
+      inlineEmbeddingExpression !== undefined
+        ? `WITH __langchain_query_embedding AS MATERIALIZED (SELECT ${inlineEmbeddingExpression} AS embedding) `
+        : "";
+    const embeddingExpression =
+      inlineEmbeddingExpression !== undefined
+        ? "(SELECT embedding FROM __langchain_query_embedding)"
+        : params.add(vectorToSql(embedding));
     const denseLimitPlaceholder = params.add(denseLimit);
 
-    const denseQuery = `SELECT ${columnNames}, ${searchFunction}("${this.embeddingColumn}", ${embeddingPlaceholder}) as distance
+    const denseQuery = `${embeddingCte}SELECT ${columnNames}, ${searchFunction}("${this.embeddingColumn}", ${embeddingExpression}) as distance
       FROM "${this.schemaName}"."${this.tableName}" ${whereFilters}
-      ORDER BY "${this.embeddingColumn}" ${operator} ${embeddingPlaceholder} LIMIT ${denseLimitPlaceholder};`;
+      ORDER BY "${this.embeddingColumn}" ${operator} ${embeddingExpression} LIMIT ${denseLimitPlaceholder};`;
 
     let denseResults: Row[];
     const client = await this.engine.pool.connect();
@@ -583,7 +656,9 @@ export class PGVectorStore extends VectorStore {
     k?: number,
     filter?: Record<string, any>,
   ): Promise<[Document, number][]> {
-    const embedding = await this.embeddings.embedQuery(query);
+    const embedding = this.hasInlineEmbeddings()
+      ? []
+      : await this.embeddings.embedQuery(query);
     if (this.hybridSearchConfig && !this.hybridSearchConfig.ftsQuery) {
       this.hybridSearchConfig.ftsQuery = query;
     }
@@ -620,9 +695,14 @@ export class PGVectorStore extends VectorStore {
     embedding: number[],
     k?: number,
     filter?: Record<string, any>,
-    ftsQuery?: string,
+    query?: string,
   ): Promise<[Document, number][]> {
-    const rows = await this.queryCollection(embedding, { k, filter, ftsQuery });
+    const rows = await this.queryCollection(embedding, {
+      k,
+      filter,
+      query,
+      ftsQuery: query,
+    });
     return rows.map((row) => [this.rowToDocument(row), Number(row.distance)]);
   }
 

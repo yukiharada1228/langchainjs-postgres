@@ -147,6 +147,38 @@ await vectorStore.applyVectorIndex(
 );
 ```
 
+### Database-side embeddings
+
+Embedding providers can implement `embedQueryInlineTemplate(placeholder)` to compute
+embeddings inside Postgres. It returns a trusted SQL expression using the supplied `$n`
+placeholder; document and query text are passed separately as native `pg` parameters.
+The query embedding expression is evaluated at most once per similarity search and reused
+for ranking and scoring.
+The SQL embedding function must already be available in your database. For example:
+
+```typescript
+import type { PGVectorStoreEmbeddings } from "@yukiharada1228/langchain-postgres";
+
+const dbEmbeddings: PGVectorStoreEmbeddings = {
+  embedDocuments: (texts) => embeddings.embedDocuments(texts),
+  embedQuery: (text) => embeddings.embedQuery(text),
+  embedQueryInlineTemplate: (placeholder) =>
+    `embedding('model_id', ${placeholder})::vector`,
+};
+
+const store = await PGVectorStore.initialize(engine, dbEmbeddings, "documents");
+```
+
+`addDocuments`, `addTexts`, and text similarity searches use the inline hook instead of
+calling the provider's client embedding methods. Explicit, non-empty vectors are used as
+provided. Maximal marginal relevance search still uses `embedQuery` for its client-side
+reranking step, matching upstream.
+
+The legacy `embedQueryInline(text)` hook is also supported; its provider is responsible for
+escaping the text in the returned SQL. When both hooks exist, `embedQueryInlineTemplate`
+takes precedence. These camelCase names correspond to upstream's
+`embed_query_inline_template` and `embed_query_inline` methods.
+
 ### Legacy `PGVector`
 
 For parity with the original `langchain_pg_collection` / `langchain_pg_embedding` schema:
@@ -208,8 +240,6 @@ console.log(await history.getMessages());
 
 ### Known gaps vs. upstream
 
-- No support for embedding providers with an `embed_query_inline` DB-side embedding hook
-  (an AlloyDB-specific optimization in the Python package).
 - The self-query translator only supports the comparators `@langchain/core`'s structured-query
   IR defines (`eq`/`ne`/`lt`/`gt`/`lte`/`gte`); Python's IR additionally has `in`/`nin`/`contain`/`like`.
 - `migratePgvectorCollection` inserts batch-by-batch sequentially instead of with bounded
