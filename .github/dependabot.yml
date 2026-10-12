@@ -10,6 +10,11 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "Asia/Tokyo"
+    ignore:
+      # PR #10: typescript-eslint currently requires TypeScript <6.1.0.
+      # Revisit the TypeScript 7 upgrade when the lint toolchain supports it.
+      - dependency-name: "typescript"
+        versions: ["7.x"]
     groups:
       # Keep packages with coupled peer dependencies together, including majors.
       vitest:
