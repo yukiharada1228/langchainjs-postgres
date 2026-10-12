@@ -42,13 +42,13 @@ function vectorToSql(embedding: number[]): string {
 export interface PGVectorStoreEmbeddings extends EmbeddingsInterface {
   /**
    * Return a trusted SQL expression using the supplied `$n` placeholder.
-   * The store binds the document or query text separately. Preferred over
-   * embedQueryInline when both hooks are available.
+   * The store binds the document or query text separately.
    */
   embedQueryInlineTemplate?(placeholder: string): string;
   /**
-   * Legacy hook returning a complete SQL expression. The provider is
-   * responsible for escaping the text; prefer embedQueryInlineTemplate.
+   * @deprecated This raw-text SQL hook is never called. Providers exposing it
+   * must also implement embedQueryInlineTemplate or initialization fails
+   * because the legacy implementation is susceptible to SQL injection.
    */
   embedQueryInline?(text: string): string;
 }
@@ -171,6 +171,17 @@ export class PGVectorStore extends VectorStore {
     tableName: string,
     options: PGVectorStoreInitializeOptions = {},
   ): Promise<PGVectorStore> {
+    if (
+      typeof embeddings.embedQueryInline === "function" &&
+      typeof embeddings.embedQueryInlineTemplate !== "function"
+    ) {
+      throw new Error(
+        "The provided embeddings use an outdated inline embedding implementation " +
+          "that is susceptible to SQL injection. Please update your provider " +
+          "to a version that supports embedQueryInlineTemplate.",
+      );
+    }
+
     let metadataColumns = options.metadataColumns ?? [];
     if (metadataColumns.length && options.ignoreMetadataColumns?.length) {
       throw new Error(
@@ -371,11 +382,6 @@ export class PGVectorStore extends VectorStore {
           // varchar column and passing it to a text embedding function.
           valueExprs[1] = "$2::text";
           valueExprs.push(this.embeddings.embedQueryInlineTemplate("$2"));
-        } else if (
-          embedding.length === 0 &&
-          typeof this.embeddings.embedQueryInline === "function"
-        ) {
-          valueExprs.push(this.embeddings.embedQueryInline(content));
         } else {
           values.push(vectorToSql(embedding));
           valueExprs.push("$3");
@@ -472,10 +478,7 @@ export class PGVectorStore extends VectorStore {
   }
 
   private hasInlineEmbeddings(): boolean {
-    return (
-      typeof this.embeddings.embedQueryInlineTemplate === "function" ||
-      typeof this.embeddings.embedQueryInline === "function"
-    );
+    return typeof this.embeddings.embedQueryInlineTemplate === "function";
   }
 
   async delete(
@@ -547,14 +550,6 @@ export class PGVectorStore extends VectorStore {
     ) {
       inlineEmbeddingExpression = this.embeddings.embedQueryInlineTemplate(
         params.add(options.query),
-      );
-    } else if (
-      embedding.length === 0 &&
-      options.query !== undefined &&
-      typeof this.embeddings.embedQueryInline === "function"
-    ) {
-      inlineEmbeddingExpression = this.embeddings.embedQueryInline(
-        options.query,
       );
     }
     // Materialize database-side embeddings once, even for STABLE/VOLATILE

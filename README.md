@@ -187,9 +187,13 @@ calling the provider's client embedding methods. Explicit, non-empty vectors are
 provided. Maximal marginal relevance search still uses `embedQuery` for its client-side
 reranking step, matching upstream.
 
-The legacy `embedQueryInline(text)` hook is also supported; its provider is responsible for
-escaping the text in the returned SQL. When both hooks exist, `embedQueryInlineTemplate`
-takes precedence. These camelCase names correspond to upstream's
+The legacy `embedQueryInline(text)` hook is no longer called because interpolating raw text
+into SQL can allow SQL injection. Initialization (including `fromTexts` and `fromDocuments`)
+rejects providers that expose this hook without a callable `embedQueryInlineTemplate`.
+Upgrade your embedding provider or implement the template hook as shown above, using the
+supplied placeholder rather than quoting or interpolating document/query text. Providers
+with both hooks use only the template hook; ordinary `embedDocuments`/`embedQuery` providers
+continue to work. These camelCase hook names correspond to upstream's
 `embed_query_inline_template` and `embed_query_inline` methods.
 
 ### Legacy `PGVector`

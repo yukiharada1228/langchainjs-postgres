@@ -51,7 +51,7 @@ function makeEmbeddings(mode: "template" | "legacy" | "both") {
       mode === "template"
         ? undefined
         : vi.fn(function (this: { model: string }, content: string) {
-            return `embedding('${this.model}', '${content.replaceAll("'", "''")}')::vector`;
+            return `embedding('${this.model}', '${content}')::vector`;
           }),
   });
   vi.spyOn(embeddings, "embedDocuments");
@@ -59,7 +59,7 @@ function makeEmbeddings(mode: "template" | "legacy" | "both") {
   return embeddings;
 }
 
-describe.each(["template", "legacy", "both"] as const)(
+describe.each(["template", "both"] as const)(
   "PGVectorStore inline embeddings (%s)",
   (mode) => {
     it.each([
@@ -118,23 +118,15 @@ describe.each(["template", "legacy", "both"] as const)(
           "docs",
           '{"extra":true}',
         ]);
-        if (mode !== "legacy") {
-          expect(insert.text).toContain(
-            "VALUES ($1, $2::text, embedding('model_id', $2)::vector, $3, $4)",
-          );
-          expect(insert.text).not.toContain(texts[i]);
-        } else {
-          expect(insert.text).toContain(
-            `embedding('model_id', '${texts[i].replaceAll("'", "''")}')::vector`,
-          );
-        }
+        expect(insert.text).toContain(
+          "VALUES ($1, $2::text, embedding('model_id', $2)::vector, $3, $4)",
+        );
+        expect(insert.text).not.toContain(texts[i]);
       }
       expect(embeddings.embedDocuments).not.toHaveBeenCalled();
       if (mode === "both")
         expect(embeddings.embedQueryInline).not.toHaveBeenCalled();
-      if (mode !== "legacy")
-        expect(embeddings.embedQueryInlineTemplate).toHaveBeenCalledWith("$2");
-      else expect(embeddings.embedQueryInline).toHaveBeenCalledWith(text);
+      expect(embeddings.embedQueryInlineTemplate).toHaveBeenCalledWith("$2");
     });
 
     it.each(["similaritySearch", "similaritySearchWithScore"] as const)(
@@ -175,23 +167,13 @@ describe.each(["template", "legacy", "both"] as const)(
         expect(search.text).toContain(
           'ORDER BY "embedding" <=> (SELECT embedding FROM __langchain_query_embedding)',
         );
-        if (mode !== "legacy") {
-          expect(search.text).toContain(
-            "SELECT embedding('model_id', $2)::vector AS embedding",
-          );
-          expect(search.text).toContain("LIMIT $3");
-          expect(search.text).not.toContain(text);
-          expect(search.values).toEqual(["docs", text, 4]);
-          expect(embeddings.embedQueryInlineTemplate).toHaveBeenCalledWith(
-            "$2",
-          );
-        } else {
-          expect(search.text).toContain(
-            `embedding('model_id', '${text.replaceAll("'", "''")}')::vector`,
-          );
-          expect(search.text).toContain("LIMIT $2");
-          expect(search.values).toEqual(["docs", 4]);
-        }
+        expect(search.text).toContain(
+          "SELECT embedding('model_id', $2)::vector AS embedding",
+        );
+        expect(search.text).toContain("LIMIT $3");
+        expect(search.text).not.toContain(text);
+        expect(search.values).toEqual(["docs", text, 4]);
+        expect(embeddings.embedQueryInlineTemplate).toHaveBeenCalledWith("$2");
         expect(embeddings.embedQuery).not.toHaveBeenCalled();
         if (mode === "both")
           expect(embeddings.embedQueryInline).not.toHaveBeenCalled();
@@ -227,6 +209,65 @@ describe.each(["template", "legacy", "both"] as const)(
     });
   },
 );
+
+describe("PGVectorStore legacy inline rejection", () => {
+  describe.each(["initialize", "fromTexts", "fromDocuments"] as const)(
+    "%s",
+    (method) => {
+      it.each([undefined, null, "not a function"])(
+        "rejects a legacy provider with template %s before using the database",
+        async (template) => {
+          const pool = makePool();
+          const engine = PGEngine.fromPool(pool as unknown as Pool);
+          const embeddings = makeEmbeddings("legacy");
+          if (template === undefined) {
+            Reflect.deleteProperty(embeddings, "embedQueryInlineTemplate");
+          } else {
+            Object.assign(embeddings, { embedQueryInlineTemplate: template });
+          }
+          const result =
+            method === "initialize"
+              ? PGVectorStore.initialize(engine, embeddings, "docs")
+              : method === "fromTexts"
+                ? PGVectorStore.fromTexts([text], [{}], embeddings, {
+                    engine,
+                    tableName: "docs",
+                  })
+                : PGVectorStore.fromDocuments(
+                    [new Document({ pageContent: text })],
+                    embeddings,
+                    { engine, tableName: "docs" },
+                  );
+
+          await expect(result).rejects.toThrow(
+            /outdated inline embedding implementation.*SQL injection.*embedQueryInlineTemplate/,
+          );
+          expect(pool.calls).toEqual([]);
+          expect(embeddings.embedQueryInline).not.toHaveBeenCalled();
+          expect(embeddings.embedDocuments).not.toHaveBeenCalled();
+          expect(embeddings.embedQuery).not.toHaveBeenCalled();
+        },
+      );
+    },
+  );
+
+  it("rejects a legacy hook inherited from a provider prototype", async () => {
+    class LegacyEmbeddings extends FakeEmbeddings {
+      embedQueryInline(content: string): string {
+        return `embedding('model_id', '${content}')::vector`;
+      }
+    }
+    const pool = makePool();
+    await expect(
+      PGVectorStore.initialize(
+        PGEngine.fromPool(pool as unknown as Pool),
+        new LegacyEmbeddings(2),
+        "docs",
+      ),
+    ).rejects.toThrow("embedQueryInlineTemplate");
+    expect(pool.calls).toEqual([]);
+  });
+});
 
 describe("PGVectorStore template binding", () => {
   it("binds empty query text once and reuses the computed embedding", async () => {

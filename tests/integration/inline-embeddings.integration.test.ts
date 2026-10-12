@@ -41,7 +41,7 @@ describe("inline embeddings (integration, real Postgres + pgvector)", () => {
     { mode: "template", hybrid: false, metadata: false },
     { mode: "template", hybrid: false, metadata: true },
     { mode: "template", hybrid: true, metadata: true },
-    { mode: "legacy", hybrid: false, metadata: true },
+    { mode: "both", hybrid: false, metadata: true },
     { mode: "both", hybrid: true, metadata: true },
   ] as const)(
     "inserts and searches with $mode hooks (hybrid: $hybrid, metadata: $metadata)",
@@ -67,15 +67,13 @@ describe("inline embeddings (integration, real Postgres + pgvector)", () => {
           throw new Error("Client query embedding should be skipped");
         }),
       };
-      if (mode !== "legacy") {
-        embeddings.embedQueryInlineTemplate = vi.fn(
-          (placeholder) => `"${functionName}"(${placeholder}::text)`,
-        );
-      }
+      embeddings.embedQueryInlineTemplate = vi.fn(
+        (placeholder) => `"${functionName}"(${placeholder}::text)`,
+      );
       if (mode !== "template") {
-        embeddings.embedQueryInline = vi.fn(
-          (text) => `"${functionName}"('${text.replaceAll("'", "''")}')`,
-        );
+        embeddings.embedQueryInline = vi.fn(() => {
+          throw new Error("Legacy inline embedding must never be called");
+        });
       }
       const store = await PGVectorStore.initialize(
         engine,

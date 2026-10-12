@@ -45,7 +45,7 @@ describe("inline embedding regressions (real Postgres + pgvector)", () => {
   });
 
   async function makeStore(
-    mode: "template" | "legacy",
+    mode: "template" | "both",
     functionName: string,
     contentType?: string,
   ) {
@@ -65,15 +65,15 @@ describe("inline embedding regressions (real Postgres + pgvector)", () => {
       embedQuery: async () => {
         throw new Error("Unexpected client embedding");
       },
-      ...(mode === "template"
+      embedQueryInlineTemplate: (placeholder: string) =>
+        `"${functionName}"(${placeholder})`,
+      ...(mode === "both"
         ? {
-            embedQueryInlineTemplate: (placeholder: string) =>
-              `"${functionName}"(${placeholder})`,
+            embedQueryInline: () => {
+              throw new Error("Legacy inline embedding must never be called");
+            },
           }
-        : {
-            embedQueryInline: (text: string) =>
-              `"${functionName}"('${text.replaceAll("'", "''")}')`,
-          }),
+        : {}),
     };
     return PGVectorStore.initialize(engine, embeddings, tableName, {
       metadataJsonColumn: null,
@@ -117,7 +117,7 @@ describe("inline embedding regressions (real Postgres + pgvector)", () => {
   describe.each(["STABLE", "VOLATILE"] as const)(
     "%s embedding function",
     (volatility) => {
-      it.each(["template", "legacy"] as const)(
+      it.each(["template", "both"] as const)(
         "evaluates a %s query once and remains eligible for HNSW",
         async (mode) => {
           const store = await makeStore(mode, functions[volatility]);
