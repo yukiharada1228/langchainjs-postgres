@@ -15,6 +15,9 @@ updates:
       # Revisit the TypeScript 7 upgrade when the lint toolchain supports it.
       - dependency-name: "typescript"
         versions: ["7.x"]
+      # These releases omit NullableHeaders from their published declarations.
+      - dependency-name: "langsmith"
+        versions: ["0.10.10", "0.10.11"]
     groups:
       # Keep packages with coupled peer dependencies together, including majors.
       vitest:

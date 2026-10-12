@@ -28,11 +28,24 @@ or modify / extend them as appropriate for your own application.
 
 You can use npm, pnpm, or yarn to install `langchainjs-postgres`:
 
-`npm install @yukiharada1228/langchain-postgres @langchain/core pg`
+`npm install @yukiharada1228/langchain-postgres @langchain/core pg langsmith@0.10.9`
 
-`pnpm add @yukiharada1228/langchain-postgres @langchain/core pg`
+`pnpm add @yukiharada1228/langchain-postgres @langchain/core pg langsmith@0.10.9`
 
-`yarn add @yukiharada1228/langchain-postgres @langchain/core pg`
+`yarn add @yukiharada1228/langchain-postgres @langchain/core pg langsmith@0.10.9`
+
+Both ESM (`import`) and CommonJS (`require`) are supported, including their respective
+TypeScript declarations with `Node16` and `NodeNext` module resolution.
+
+LangSmith 0.10.10 and 0.10.11 ship incomplete `NullableHeaders` declarations. The package's
+peer dependency excludes these releases; the commands above select 0.10.9 so strict
+TypeScript consumers using `NodeNext` do not need `skipLibCheck`. When upgrading an existing project,
+update its LangSmith dependency and lockfile as well. Revisit this constraint once an
+upstream fix passes the package compatibility checks.
+
+For `Node16` resolution, upstream LangChain/js-tiktoken and LangSmith declarations still
+produce TS1479 when checking dependencies. Use `NodeNext` for full dependency checking,
+or set `skipLibCheck: true` with `Node16`; consumer imports are checked in both modes.
 
 ## Vectorstore
 
@@ -256,6 +269,7 @@ npm run build       # tsup -> dist/
 npm test            # vitest (unit tests against a mocked pg.Pool, no DB required)
 npm run typecheck
 npm run lint
+npm run test:package # fresh npm pack install, ESM/CJS loading and strict TS 5.9/6 checks
 ```
 
 ### Integration tests
@@ -269,6 +283,13 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres npm run test:i
 ```
 
 CI runs this automatically against a `pgvector/pgvector:pg17` service container.
+
+With `DATABASE_URL` set, `npm run test:package` also checks the installed tarball's vector
+CRUD, search, filters, indexes, legacy UUID generation, and chat persistence. CI runs
+these checks on Node.js 20.0.0 and the latest Node.js 20, 22, 24, and 26 releases. Build
+tools run on Node.js 24; `PACKAGE_NODE_VERSION=20.0.0 npm run test:package` selects a
+different runtime for the installed package. This command requires network access to
+resolve fresh consumer dependencies and the requested Node.js runtime.
 
 ## Staying in sync with upstream
 
