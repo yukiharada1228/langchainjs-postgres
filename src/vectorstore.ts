@@ -15,7 +15,7 @@ import {
   VectorStore,
   type MaxMarginalRelevanceSearchOptions,
 } from "@langchain/core/vectorstores";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "node:crypto";
 
 import { PGEngine } from "./engine.js";
 import {
@@ -342,7 +342,7 @@ export class PGVectorStore extends VectorStore {
     metadatas?: Record<string, any>[],
     ids?: Array<string | null | undefined>,
   ): Promise<string[]> {
-    const finalIds = texts.map((_, i) => ids?.[i] ?? uuidv4());
+    const finalIds = texts.map((_, i) => ids?.[i] ?? randomUUID());
     const finalMetadatas: Record<string, any>[] =
       metadatas && metadatas.length === texts.length
         ? metadatas

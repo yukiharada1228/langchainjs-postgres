@@ -16,7 +16,7 @@ import {
   VectorStore,
   type MaxMarginalRelevanceSearchOptions,
 } from "@langchain/core/vectorstores";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "node:crypto";
 
 import { ParamBuilder } from "../filter.js";
 import type { Row } from "../hybrid_search.js";
@@ -197,7 +197,7 @@ export class PGVector extends VectorStore {
       return;
     }
 
-    const id = uuidv4();
+    const id = randomUUID();
     await this.engine.pool.query(
       "INSERT INTO langchain_pg_collection (uuid, name, cmetadata) VALUES ($1, $2, $3)",
       [
@@ -235,7 +235,7 @@ export class PGVector extends VectorStore {
     ids?: Array<string | null | undefined>,
   ): Promise<string[]> {
     const collectionId = this.requireCollectionId();
-    const finalIds = texts.map((_, i) => ids?.[i] ?? uuidv4());
+    const finalIds = texts.map((_, i) => ids?.[i] ?? randomUUID());
     const finalMetadatas: Record<string, any>[] =
       metadatas && metadatas.length === texts.length
         ? metadatas

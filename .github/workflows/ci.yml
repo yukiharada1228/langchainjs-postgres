@@ -55,3 +55,37 @@ jobs:
 
       - run: npm ci
       - run: npm run test:integration
+
+  package:
+    name: Package (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["20.0.0", "20", "22", "24", "26"]
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      PACKAGE_NODE_VERSION: ${{ matrix.node }}
+    steps:
+      - uses: actions/checkout@v7
+      # Build tools run on Node 24; the installed package runs on each target.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:package
