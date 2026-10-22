@@ -7,6 +7,13 @@ import prettier from "eslint-config-prettier";
 export default [
   js.configs.recommended,
   {
+    files: [".github/scripts/**/*.cjs"],
+    languageOptions: {
+      sourceType: "commonjs",
+      globals: { __dirname: "readonly" },
+    },
+  },
+  {
     files: ["**/*.ts"],
     languageOptions: {
       parser: tsParser,
