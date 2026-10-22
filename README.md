@@ -267,6 +267,9 @@ described below.
 
 ## Development
 
+Use Node.js 24.11 or later in the 24.x line for development, matching the package build CI.
+tsup 9 requires Node.js `^22.18.0 || ^24.11.0 || >=26.0.0` to build the package.
+
 ```bash
 npm install
 npm run build       # tsup -> dist/
