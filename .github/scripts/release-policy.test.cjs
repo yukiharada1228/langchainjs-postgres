@@ -424,6 +424,7 @@ test("release build has no write credentials; publisher never installs or builds
   const build = workflow.split("  build:\n")[1].split("  publish:\n")[0];
   const publish = workflow.split("  publish:\n")[1];
   assert.doesNotMatch(build, /id-token: write|contents: write|secrets\./);
+  assert.match(workflow, /^cache-mode: none$/m);
   assert.doesNotMatch(
     publish,
     /npm ci|npm install|npm run build|NODE_AUTH_TOKEN/,
@@ -432,4 +433,25 @@ test("release build has no write credentials; publisher never installs or builds
   assert.match(publish, /id-token: write/);
   for (const match of workflow.matchAll(/uses: [^\s@]+@([^\s]+)/g))
     assert.match(match[1], /^[a-f0-9]{40}$/);
+});
+
+test("npm release packaging accepts reviewed npm 12 output and rejects the wrong tarball", () => {
+  const { packedPackage } = require("./npm-release.cjs");
+  const packed = {
+    name: PACKAGE,
+    version: "0.2.1",
+    filename: "package-0.2.1.tgz",
+  };
+  assert.deepEqual(packedPackage({ [PACKAGE]: packed }, "0.2.1"), packed);
+  assert.deepEqual(packedPackage([packed], "0.2.1"), packed);
+  assert.throws(() => packedPackage({ other: packed }, "0.2.1"));
+  assert.throws(() =>
+    packedPackage({ [PACKAGE]: { ...packed, version: "0.2.0" } }, "0.2.1"),
+  );
+  assert.throws(() =>
+    packedPackage(
+      { [PACKAGE]: { ...packed, filename: "../escape.tgz" } },
+      "0.2.1",
+    ),
+  );
 });

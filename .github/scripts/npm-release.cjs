@@ -16,10 +16,20 @@ function requirePackage(manifest, version) {
     throw new Error("Unexpected tarball name or version.");
 }
 
+function packedPackage(output, version) {
+  // npm 12 returns an object keyed by package name; older npm returns an array.
+  const packed = Array.isArray(output) ? output[0] : output?.[PACKAGE];
+  if (!packed) throw new Error("npm pack did not report the expected package.");
+  requirePackage(packed, version);
+  if (!/^[a-zA-Z0-9._-]+\.tgz$/.test(packed.filename))
+    throw new Error("Invalid tarball filename.");
+  return packed;
+}
+
 function pack(version) {
   requirePackage(JSON.parse(readFileSync("package.json", "utf8")), version);
   mkdirSync("release-artifact", { recursive: true });
-  const [packed] = JSON.parse(
+  const packResult = JSON.parse(
     execFileSync(
       "npm",
       [
@@ -32,9 +42,7 @@ function pack(version) {
       { encoding: "utf8" },
     ),
   );
-  requirePackage(packed, version);
-  if (!/^[a-zA-Z0-9._-]+\.tgz$/.test(packed.filename))
-    throw new Error("Invalid tarball filename.");
+  const packed = packedPackage(packResult, version);
   renameSync(
     resolve("release-artifact", packed.filename),
     "release-artifact/package.tgz",
@@ -128,4 +136,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { requirePackage, verifyIntegrity };
+module.exports = { requirePackage, verifyIntegrity, packedPackage };

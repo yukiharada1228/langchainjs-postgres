@@ -13,6 +13,9 @@ permissions:
   contents: read
   actions: read
 
+# Released source runs in an isolated build job with no shared cache access.
+cache-mode: none
+
 concurrency:
   group: npm-publish
   cancel-in-progress: false
