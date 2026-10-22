@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+concurrency:
+  group: automatic-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: >-
+      github.repository == 'yukiharada1228/langchainjs-postgres' &&
+      vars.RELEASE_AUTOMATION_ENABLED == 'true' &&
+      (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - name: Require complete CI on the current main commit
+        id: gate
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { releasePlan } = require('./.github/scripts/release-policy.cjs');
+            const plan = await releasePlan({ github, context });
+            core.setOutput('ready', plan.ready);
+            core.setOutput('skip_pr', plan.skipPullRequest);
+      - name: Create repository-scoped release token
+        if: steps.gate.outputs.ready == 'true'
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ vars.PATCH_BOT_APP_ID }}
+          private-key: ${{ secrets.PATCH_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-administration: read
+      - name: Calculate versions, maintain release PR, and create release
+        if: steps.gate.outputs.ready == 'true'
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ steps.app.outputs.token }}
+          target-branch: main
+          skip-github-pull-request: ${{ steps.gate.outputs.skip_pr }}
+      - name: Automatically merge only verified release metadata
+        if: steps.gate.outputs.ready == 'true' && steps.gate.outputs.skip_pr == 'false'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          RELEASE_BOT: ${{ steps.app.outputs.app-slug }}[bot]
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const { queueRelease } = require('./.github/scripts/release-policy.cjs');
+            await queueRelease({ github, context, bot: process.env.RELEASE_BOT });

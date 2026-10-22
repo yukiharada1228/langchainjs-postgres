@@ -298,6 +298,14 @@ tools run on Node.js 24; `PACKAGE_NODE_VERSION=20.0.0 npm run test:package` sele
 different runtime for the installed package. This command requires network access to
 resolve fresh consumer dependencies and the requested Node.js runtime.
 
+## Automatic releases
+
+After changes are squash-merged into `main` and CI passes, releases are automatic:
+version selection, release PR creation and merging, changelog, GitHub Release, and npm
+publication using Trusted Publishing. Use Conventional Commit PR titles (`fix:`, `feat:`,
+`fix!:`, etc.); CI validates the format. See the [release policy](.github/releases.md)
+for version rules, timing, and recovery.
+
 ## Dependency update automation
 
 Dependabot patch updates can auto-merge after every CI job passes. Failed updates

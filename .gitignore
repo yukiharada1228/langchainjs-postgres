@@ -5,3 +5,4 @@ coverage/
 .env
 .DS_Store
 upstream-report.txt
+release-artifact/
