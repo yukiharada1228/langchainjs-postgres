@@ -62,8 +62,14 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.candidate.outputs.sha }}
+          ref: refs/tags/v${{ needs.candidate.outputs.version }}
           persist-credentials: false
+      - name: Require the released tag to still point at the CI-verified commit
+        env:
+          RELEASE_SHA: ${{ needs.candidate.outputs.sha }}
+        run: |
+          [[ "$RELEASE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version

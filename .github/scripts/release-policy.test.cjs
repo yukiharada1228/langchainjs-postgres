@@ -425,6 +425,14 @@ test("release build has no write credentials; publisher never installs or builds
   const publish = workflow.split("  publish:\n")[1];
   assert.doesNotMatch(build, /id-token: write|contents: write|secrets\./);
   assert.match(workflow, /^cache-mode: none$/m);
+  assert.match(
+    build,
+    /ref: refs\/tags\/v\$\{\{ needs\.candidate\.outputs\.version \}\}/,
+  );
+  const verifyTag = build.indexOf(
+    'test "$(git rev-parse HEAD)" = "$RELEASE_SHA"',
+  );
+  assert.ok(verifyTag > 0 && verifyTag < build.indexOf("actions/setup-node@"));
   assert.doesNotMatch(
     publish,
     /npm ci|npm install|npm run build|NODE_AUTH_TOKEN/,
