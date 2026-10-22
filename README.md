@@ -298,6 +298,14 @@ tools run on Node.js 24; `PACKAGE_NODE_VERSION=20.0.0 npm run test:package` sele
 different runtime for the installed package. This command requires network access to
 resolve fresh consumer dependencies and the requested Node.js runtime.
 
+## Dependency update automation
+
+Dependabot patch updates can auto-merge after every CI job passes. Failed updates
+receive instructions for requesting a repair through Codex's GitHub integration
+using your ChatGPT subscription; no OpenAI API key or always-on PC is needed.
+See the [setup guide](.github/dependency-automation.md) for enabling auto-merge and
+connecting Codex. A person starts each repair by commenting on the PR.
+
 ## Staying in sync with upstream
 
 This package tracks [`langchain-ai/langchain-postgres`](https://github.com/langchain-ai/langchain-postgres)

@@ -32,12 +32,16 @@ updates:
           - "typescript-eslint"
           - "eslint-config-prettier"
       # Other major updates get individual PRs for review.
-      minor-and-patch:
+      npm-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+      npm-minor:
         patterns:
           - "*"
         update-types:
           - "minor"
-          - "patch"
 
   - package-ecosystem: "github-actions"
     directory: "/"
