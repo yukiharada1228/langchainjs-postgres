@@ -301,7 +301,7 @@ async function publishCandidate({ github, context, lookup = registryVersion }) {
   if (release.draft || release.prerelease) return null;
   const { data: commit } = await github.rest.repos.getCommit({
     ...context.repo,
-    ref: `tags/${tag}`,
+    ref: `refs/tags/${tag}`,
   });
   const sha = commit.sha;
   const { data: comparison } =

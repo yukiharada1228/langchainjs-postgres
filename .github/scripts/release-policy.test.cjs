@@ -121,7 +121,10 @@ function fixture() {
         getReleaseByTag: async () => ({
           data: { draft: false, prerelease: false },
         }),
-        getCommit: async () => ({ data: { sha } }),
+        getCommit: async ({ ref }) => {
+          assert.equal(ref, "refs/tags/v0.2.0");
+          return { data: { sha } };
+        },
         compareCommitsWithBasehead: async () => ({
           data: { status: state.comparison },
         }),
