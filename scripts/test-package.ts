@@ -20,12 +20,19 @@ function run(command: string, args: string[]) {
 }
 
 try {
-  const [packed] = JSON.parse(
+  const packResult = JSON.parse(
     execFileSync(npm, ["pack", "--json", "--pack-destination", consumer], {
       cwd: root,
       encoding: "utf8",
     }),
   );
+  // npm 12 keys JSON output by package name; earlier releases return an array.
+  const packed = Array.isArray(packResult)
+    ? packResult[0]
+    : packResult[manifest.name];
+  if (!packed || typeof packed.filename !== "string") {
+    throw new Error("npm pack did not report the package tarball");
+  }
   writeFileSync(
     join(consumer, "package.json"),
     JSON.stringify({

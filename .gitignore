@@ -6,3 +6,5 @@ coverage/
 .DS_Store
 upstream-report.txt
 release-artifact/
+__pycache__/
+runtime-plan.json
