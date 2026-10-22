@@ -128,7 +128,10 @@ test("auto-merge fails closed if required CI or strict protection disappears", (
   const protection = {
     required_status_checks: {
       strict: true,
-      checks: [{ context: "CI Success", app_id: 15368 }],
+      checks: [
+        { context: "CI Success", app_id: 15368 },
+        { context: "Supply Chain Security", app_id: 15368 },
+      ],
     },
   };
   policy.requireProtection(protection);
@@ -449,7 +452,13 @@ test("subscription repair workflow contains no model execution or model credenti
 });
 
 test("CI gate rejects failed, skipped, cancelled and missing jobs", () => {
-  const expected = ["test", "integration", "package", "workflow-security"];
+  const expected = [
+    "test",
+    "integration",
+    "package",
+    "workflow-security",
+    "supply-chain",
+  ];
   const success = () =>
     Object.fromEntries(expected.map((job) => [job, { result: "success" }]));
   policy.requireCiSuccess(success());
@@ -484,7 +493,13 @@ test("CI Success depends on every CI job and always evaluates the results", () =
   assert.deepEqual(needs.sort(), jobs.sort());
   assert.deepEqual(
     needs,
-    ["test", "integration", "package", "workflow-security"].sort(),
+    [
+      "test",
+      "integration",
+      "package",
+      "workflow-security",
+      "supply-chain",
+    ].sort(),
   );
   assert.match(gate, /name: CI Success/);
   assert.match(gate, /if: \$\{\{ always\(\) \}\}/);
