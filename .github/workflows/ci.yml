@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, develop]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
 
 permissions:
   contents: read
@@ -143,6 +144,13 @@ jobs:
           node-version: 22
       - run: node --test .github/scripts/*.test.cjs
       - run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+      - name: Validate the PR title used for automatic versioning
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { requirePullTitle } = require('./.github/scripts/release-policy.cjs');
+            requirePullTitle(context.payload.pull_request.title);
 
   ci-success:
     name: CI Success
