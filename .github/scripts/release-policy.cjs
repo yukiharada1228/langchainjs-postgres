@@ -2,6 +2,8 @@ const { requireProtection } = require("./dependency-automation.cjs");
 
 const REPOSITORY = "yukiharada1228/langchainjs-postgres";
 const PACKAGE = "@yukiharada1228/langchain-postgres";
+const RELEASE_BRANCH =
+  "release-please--branches--main--components--langchain-postgres";
 const VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const REQUIRED_JOBS = [
   "test",
@@ -154,7 +156,7 @@ function validReleasePull(pr, files, bot) {
     pr.head?.repo?.full_name === REPOSITORY &&
     pr.base?.repo?.full_name === REPOSITORY &&
     pr.base.ref === "main" &&
-    pr.head.ref === "release-please--branches--main" &&
+    pr.head.ref === RELEASE_BRANCH &&
     pr.labels.some((label) => label.name === "autorelease: pending") &&
     !pr.labels.some((label) => label.name === "no-automerge") &&
     files.length === 4 &&
@@ -172,7 +174,7 @@ async function queueRelease({ github, context, bot }) {
     ...context.repo,
     state: "open",
     base: "main",
-    head: `${context.repo.owner}:release-please--branches--main`,
+    head: `${context.repo.owner}:${RELEASE_BRANCH}`,
   });
   for (const pr of pulls) {
     const files = await github.paginate(github.rest.pulls.listFiles, {

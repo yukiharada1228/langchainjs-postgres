@@ -48,7 +48,7 @@ const pr = {
   user: { login: bot, type: "Bot" },
   head: {
     sha: next,
-    ref: "release-please--branches--main",
+    ref: "release-please--branches--main--components--langchain-postgres",
     repo: { full_name: REPOSITORY },
   },
   base: { sha, ref: "main", repo: { full_name: REPOSITORY } },
@@ -81,7 +81,12 @@ function fixture() {
         listJobsForWorkflowRun: async () => state.jobs,
       },
       pulls: {
-        list: async () => ({ data: [state.pr] }),
+        list: async ({ head }) => ({
+          data:
+            head === `${context.repo.owner}:${state.pr.head.ref}`
+              ? [state.pr]
+              : [],
+        }),
         listFiles: async () => state.files,
         get: async () => ({ data: state.pr }),
       },
