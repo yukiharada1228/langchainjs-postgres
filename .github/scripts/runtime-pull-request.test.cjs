@@ -24,12 +24,20 @@ test("runtime PRs cannot write workflows, application code, credentials, or arbi
     ".env",
     "../outside",
     "infra/variables.tf",
+    ".python-version",
+    "apps/worker/Dockerfile",
   ]) {
     const candidate = plan();
     candidate.files[path] = "untrusted";
     assert.throws(() => validate(candidate));
   }
-  for (const runtime of ["node;echo bad", "python\nother"]) {
+  for (const runtime of [
+    "node;echo bad",
+    "python\nother",
+    "python",
+    "pip",
+    "uv",
+  ]) {
     assert.throws(() => validate({ ...plan(), runtime }));
   }
 });

@@ -10,7 +10,15 @@ export default [
     files: [".github/scripts/**/*.cjs"],
     languageOptions: {
       sourceType: "commonjs",
-      globals: { __dirname: "readonly" },
+      globals: {
+        __dirname: "readonly",
+        console: "readonly",
+        fetch: "readonly",
+        AbortSignal: "readonly",
+        Response: "readonly",
+        URL: "readonly",
+        structuredClone: "readonly",
+      },
     },
   },
   {
