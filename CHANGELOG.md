@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/yukiharada1228/langchainjs-postgres/compare/v0.2.2...v0.2.3) (2026-10-26)
+
+
+### Bug Fixes
+
+* **deps:** update zod to resolve security audit finding ([#43](https://github.com/yukiharada1228/langchainjs-postgres/issues/43)) ([048032a](https://github.com/yukiharada1228/langchainjs-postgres/commit/048032aede0f548c17556e2efbfd3c28509eb14f))
+
 ## [0.2.2](https://github.com/yukiharada1228/langchainjs-postgres/compare/v0.2.1...v0.2.2) (2026-10-26)
 
 
