@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/yukiharada1228/langchainjs-postgres/compare/v0.2.3...v0.2.4) (2026-10-31)
+
+
+### Bug Fixes
+
+* **deps:** resolve minimatch glob amplification vulnerability ([#45](https://github.com/yukiharada1228/langchainjs-postgres/issues/45)) ([d01b728](https://github.com/yukiharada1228/langchainjs-postgres/commit/d01b728a8646ba1f67c4fbd7a047e69a9627ed69))
+
 ## [0.2.3](https://github.com/yukiharada1228/langchainjs-postgres/compare/v0.2.2...v0.2.3) (2026-10-26)
 
 
