@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.5](https://github.com/yukiharada1228/langchainjs-postgres/compare/v0.2.4...v0.2.5) (2026-11-09)
+
+
+### Dependencies
+
+* **deps:** bump the github-actions group with 2 updates ([#52](https://github.com/yukiharada1228/langchainjs-postgres/issues/52)) ([868be72](https://github.com/yukiharada1228/langchainjs-postgres/commit/868be7217c15781e322699b71544e7aba08d8492))
+
 ## [0.2.4](https://github.com/yukiharada1228/langchainjs-postgres/compare/v0.2.3...v0.2.4) (2026-10-31)
 
 
